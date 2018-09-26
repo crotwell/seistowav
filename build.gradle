@@ -62,6 +62,7 @@ def distFiles = copySpec {
         include('gradlew.bat')
     }
     from('.') {
+        include('README.md')
         include('gpl-3.0.txt')
         include('src/**')
         include('lib/**')
@@ -118,7 +119,7 @@ task explodeBin(type: Sync, dependsOn: ['makeScript' ]) {
 }
 explodeBin.doLast { ant.chmod(dir: "$buildDir/explode/bin", perm: "755", includes: "*") }
 
-task explodeDist(type: Sync, dependsOn: ['explodeBin', 'wrapper', 'doc']) {
+task explodeDist(type: Sync, dependsOn: ['explodeBin']) {
     group = 'dist'
     with distFiles
     into file("$buildDir/explode")
