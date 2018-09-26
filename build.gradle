@@ -1,0 +1,129 @@
+
+plugins {
+  id "edu.sc.seis.version-class" version "1.1.1"
+}
+
+
+group = 'edu.sc.seis'
+version = '1.0.0-SNAPSHOT'
+
+apply plugin: 'eclipse'
+apply plugin: 'java'
+apply plugin:'application'
+mainClassName = "edu.sc.seis.seistowav.Start"
+
+repositories {
+    mavenLocal()
+    mavenCentral()
+}
+
+tasks.withType(JavaCompile) {
+    configure(options) {
+      options.deprecation = false
+    }
+}
+
+sourceCompatibility = 1.8
+targetCompatibility = 1.8
+
+dependencies {
+    compile 'edu.sc.seis:seisFile:1.8.0'
+    compile "com.martiansoftware:jsap:2.1"
+}
+
+configurations {
+    // we need seisFile for mseed/psn input, but not all the other functionality
+    all*.exclude group: "org.rxtx", module: "rxtx"
+    all*.exclude group: "org.codehaus.woodstox", module: "woodstox-core-lgpl"
+    all*.exclude group: "net.java.dev.msv", module: "msv-core"
+    all*.exclude group: "org.apache.httpcomponents", module: "httpclient"
+    all*.exclude group: "mysql", module: "mysql-connector-java"
+}
+
+
+def dirName = project.name+'-'+version
+
+def binDistFiles = copySpec {
+
+    from('build/output') {
+        fileMode=0755
+        include('bin/**')
+    }
+    from('build/output') {
+        include('lib/**')
+    }
+}
+
+def distFiles = copySpec {
+    with(binDistFiles)
+    from('.') {
+        fileMode=0755
+        include('gradlew')
+        include('gradlew.bat')
+    }
+    from('.') {
+        include('gpl-3.0.txt')
+        include('src/**')
+        include('lib/**')
+        include('gradle/**')
+    }
+    from('build') {
+        include('doc/**')
+        include('build.gradle')
+        include('settings.gradle')
+    }
+    from('build/docs') {
+        include('javadoc/**')
+        into 'doc/documentation'
+    }
+}
+
+task copyToLib(type: CopyToLib) {}
+
+task makeScript(dependsOn: copyToLib) {
+  doLast { task ->
+    group = 'build'
+    def doBat = true
+    ScriptBuilder.create('seis2wav', 'edu.sc.seis.seistowav.Start', task.project, bat:true)
+  }
+}
+
+task tarBin(type: Tar, dependsOn: ['explodeBin']) {
+    group = 'dist'
+    compression = Compression.GZIP
+    into(dirName) {
+        with binDistFiles
+    }
+}
+
+
+task zipDist(type: Zip, dependsOn: ['explodeDist']) {
+    group = 'dist'
+    into(dirName) {
+        with distFiles
+    }
+}
+task tarDist(type: Tar, dependsOn: ['explodeDist']) {
+    group = 'dist'
+    compression = Compression.GZIP
+    into(dirName) {
+        with distFiles
+    }
+}
+
+task explodeBin(type: Sync, dependsOn: ['makeScript' ]) {
+    group = 'dist'
+    with binDistFiles
+    into file("$buildDir/explode")
+}
+explodeBin.doLast { ant.chmod(dir: "$buildDir/explode/bin", perm: "755", includes: "*") }
+
+task explodeDist(type: Sync, dependsOn: ['explodeBin', 'wrapper', 'doc']) {
+    group = 'dist'
+    with distFiles
+    into file("$buildDir/explode")
+}
+
+
+
+
